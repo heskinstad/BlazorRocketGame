@@ -1,0 +1,125 @@
+﻿@inject IJSRuntime JS
+
+<canvas id="gameCanvas" tabindex="0" @onkeydown="HandleKeyDown"></canvas>
+
+@code {
+    private IJSObjectReference _canvasModule;
+    private double _rotationAngle = 0;
+    private double _velocityX = 0;
+    private double _velocityY = 0;
+    private double _x = 2500; // Center of the game world
+    private double _y = 2500; // Center of the game world
+    private bool _showFlames = false;
+    private List<Planet> _planets = new List<Planet>();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _canvasModule = await JS.InvokeAsync<IJSObjectReference>("import", "./canvasHelper.js");
+            await SetCanvasSizeAsync();
+            await _canvasModule.InvokeVoidAsync("initializeCanvas");
+            await GeneratePlanetsAsync();
+            await DrawTriangleAsync();
+            _ = UpdatePositionAsync();
+        }
+    }
+
+    private async Task SetCanvasSizeAsync()
+    {
+        var browserSize = await JS.InvokeAsync<BrowserSize>("getBrowserSize");
+        var canvas = await JS.InvokeAsync<IJSObjectReference>("import", "./canvasHelper.js");
+        await canvas.InvokeVoidAsync("setCanvasSize", browserSize.Width, browserSize.Height);
+    }
+
+    private async Task GeneratePlanetsAsync()
+    {
+        for (int i = 0; i < 30; i++)
+        {
+            Planet planet;
+            bool collision;
+            do
+            {
+                var position = await _canvasModule.InvokeAsync<Position>("generateRandomPosition", _x, _y, 320, 5000, 5000);
+                planet = new Planet { x = position.x, y = position.y, radius = 120 };
+                collision = _planets.Any(p => Math.Sqrt(Math.Pow(p.x - planet.x, 2) + Math.Pow(p.y - planet.y, 2)) < (p.radius + planet.radius + 20));
+            } while (collision);
+            _planets.Add(planet);
+        }
+    }
+
+    private async Task DrawTriangleAsync()
+    {
+        var browserSize = await JS.InvokeAsync<BrowserSize>("getBrowserSize");
+        await _canvasModule.InvokeVoidAsync("drawTriangle", _rotationAngle, browserSize.Width / 2, browserSize.Height / 2, _showFlames, _planets, _x, _y);
+    }
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "ArrowLeft")
+        {
+            _rotationAngle -= 10;
+        }
+        else if (e.Key == "ArrowRight")
+        {
+            _rotationAngle += 10;
+        }
+        else if (e.Key == "ArrowUp")
+        {
+            _velocityX += 0.1 * Math.Cos(_rotationAngle * Math.PI / 180);
+            _velocityY += 0.1 * Math.Sin(_rotationAngle * Math.PI / 180);
+            _showFlames = true;
+        }
+
+        await DrawTriangleAsync();
+    }
+
+    private async Task UpdatePositionAsync()
+    {
+        while (true)
+        {
+            ApplyGravity();
+            _x += _velocityX;
+            _y += _velocityY;
+
+            _showFlames = false; // Reset flames after each frame
+
+            await DrawTriangleAsync();
+            await Task.Delay(16); // Approximately 60 FPS
+        }
+    }
+
+    private void ApplyGravity()
+    {
+        foreach (var planet in _planets)
+        {
+            double distance = Math.Sqrt(Math.Pow(planet.x - _x, 2) + Math.Pow(planet.y - _y, 2));
+            if (distance < 600)
+            {
+                double gravityStrength = 0.08 * (1 - (distance / 600));
+                double angle = Math.Atan2(planet.y - _y, planet.x - _x);
+                _velocityX += gravityStrength * Math.Cos(angle);
+                _velocityY += gravityStrength * Math.Sin(angle);
+            }
+        }
+    }
+
+    private class BrowserSize
+    {
+        public double Width { get; set; }
+        public double Height { get; set; }
+    }
+
+    private class Planet
+    {
+        public double x { get; set; }
+        public double y { get; set; }
+        public double radius { get; set; }
+    }
+
+    private class Position
+    {
+        public double x { get; set; }
+        public double y { get; set; }
+    }
+}

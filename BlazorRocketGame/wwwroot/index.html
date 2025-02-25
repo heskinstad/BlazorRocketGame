@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Boolean Rocket Ride</title>
+    <base href="/" />
+    <link href="css/app.css" rel="stylesheet" />
+</head>
+<body>
+    <app>
+        <div id="app">Loading...</div>
+    </app>
+
+    <script src="_framework/blazor.webassembly.js"></script>
+    <script type="module" src="canvasHelper.js"></script>
+    <script>
+        alert("Welcome to Boolean Rocket Ride!\n\nControls:\n- Left Arrow: Rotate Left\n- Right Arrow: Rotate Right\n- Up Arrow: Accelerate\n\nThere are no objectives. Fly around and feel the gravity!");
+        window.getBrowserSize = () => {
+            return {
+                width: window.innerWidth,
+                height: window.innerHeight
+            };
+        };
+    </script>
+</body>
+</html>
